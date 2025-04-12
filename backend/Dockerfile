@@ -21,7 +21,7 @@ COPY frontend/ /app/frontend/
 RUN echo '#!/bin/bash\n\
     service nginx start\n\
     cd /app/backend\n\
-    gunicorn --bind 0.0.0.0:5000 main:app &\n\
+    python main.py &\n\
     wait' > /app/start.sh && chmod +x /app/start.sh
 
 # Expose port 80 for Nginx
