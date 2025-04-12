@@ -3,13 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MCP Server Configuration</title>
+    <title>Dynamic MCP Server Configuration</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
+        }
+        .banner {
+            background-color: #f0f8ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 4px;
+        }
+        .banner p {
+            margin: 5px 0;
+            line-height: 1.5;
+        }
+        .banner a {
+            color: #2196F3;
+            text-decoration: none;
+        }
+        .banner a:hover {
+            text-decoration: underline;
         }
         h1 {
             color: #333;
@@ -83,9 +101,32 @@
             border-radius: 4px;
             overflow-x: auto;
         }
+        .response-option {
+            margin-left: 20px;
+            border-left: 2px solid #ccc;
+            padding-left: 15px;
+        }
+        .sub-option::before {
+            content: '';
+            display: inline-block;
+            width: 10px;
+            height: 0px;
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
+    <div class="banner">
+        <p><strong>URL-based MCP Builder Tool:</strong> This UI allows you to build basic toy MCP servers with no code, generated completely by a dynamic URL. It's aimed at testing MCP clients and models and is likely not useful for actual data integrations.</p>
+        <p>
+            • Build and configure MCP servers without writing any code<br>
+            • Share your configuration via URL<br>
+            • Copy paste the MCP config into your <code>mcp.json</code> file<br>
+            • <a href="https://github.com/sshh12/mcp-demo" target="_blank">View source code on GitHub</a><br>
+            • <a href="https://blog.sshh.io/" target="_blank">Learn more on developer blog</a>
+        </p>
+    </div>
+    
     <h1>MCP Server Configuration</h1>
     
     <div class="form-group">
@@ -106,25 +147,25 @@
             <button id="addTool">Add Tool</button>
         </div>
     </div>
+
+    <div id="mcpConfigContainer">
+        <h3>MCP Configuration <small>(updates automatically)</small></h3>
+        <p>Copy this configuration to your <code>mcp.json</code> file:</p>
+        <pre id="mcpConfig"></pre>
+        <button id="copyMcpConfig" class="copy-button">Copy MCP Config</button>
+    </div>
     
     <div class="result">
-        <h3>Generated URL: <small>(updates automatically)</small></h3>
+        <h3>Generated SSE URL <small>(updates automatically)</small></h3>
         <pre id="generatedUrl"></pre>
         <button id="copyUrl" class="copy-button">Copy URL</button>
     </div>
 
     <div id="shareContainer">
-        <h3>Share Link: <small>(updates automatically)</small></h3>
+        <h3>Share Link <small>(updates automatically)</small></h3>
         <p>Use this link to share your current configuration with others:</p>
         <pre id="shareUrl"></pre>
         <button id="copyShareLink" class="copy-button">Copy Share Link</button>
-    </div>
-
-    <div id="mcpConfigContainer">
-        <h3>MCP Configuration: <small>(updates automatically)</small></h3>
-        <p>Copy this configuration to your <code>mcp.json</code> file:</p>
-        <pre id="mcpConfig"></pre>
-        <button id="copyMcpConfig" class="copy-button">Copy MCP Config</button>
     </div>
 
     <script>
@@ -283,12 +324,12 @@
                             <option value="static">Static Text Response</option>
                         </select>
                     </div>
-                    <div class="form-group endpoint-container">
-                        <label>HTTP Post Endpoint:</label>
+                    <div class="form-group endpoint-container response-option">
+                        <label class="sub-option">→ HTTP Post Endpoint:</label>
                         <input type="text" class="tool-endpoint">
                     </div>
-                    <div class="form-group response-container">
-                        <label>Static Text Response:</label>
+                    <div class="form-group response-container response-option">
+                        <label class="sub-option">→ Static Text Response:</label>
                         <textarea class="tool-response" rows="3"></textarea>
                     </div>
                     <button class="delete-tool">Delete Tool</button>
