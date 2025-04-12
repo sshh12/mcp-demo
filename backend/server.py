@@ -34,6 +34,7 @@ class MCPSession:
     self.server_name = "Demo MCP"
     self.server_version = "1.0.0"
     self.configured_tools = []
+    self.client_info = {}
 
 
 def on_mcp(method: str):
@@ -51,6 +52,11 @@ def on_initialize(session: MCPSession, params: Dict) -> Dict:
   version = params["protocolVersion"]
   if version != "2024-11-05":
     logging.warning(f"Using unknown version... this might not work: {version}")
+
+  # Store client info in session if provided
+  if "clientInfo" in params:
+    session.client_info = params["clientInfo"]
+    _logger.info(f"Received client info: {session.client_info}")
 
   return {
     "protocolVersion": version,
@@ -92,34 +98,54 @@ def on_tools_call(session: MCPSession, params: Dict) -> Dict:
 
   # Check if we have configured tools
   for tool in session.configured_tools:
-    if tool["name"] == tool_name and "endpoint" in tool:
-      try:
-        # Make an actual HTTP POST request to the tool's endpoint
-        response = requests.post(
-          tool["endpoint"],
-          json=tool_arguments,
-          headers={"Content-Type": "application/json"},
-          timeout=30
-        )
-        
-        # Check if request was successful
-        response.raise_for_status()
-        
-        # Return the response text
+    if tool["name"] == tool_name:
+      # Handle static text response
+      if tool.get("responseType") == "static" and "staticResponse" in tool:
         return {
           "content": [
             {
               "type": "text", 
-              "text": response.text
+              "text": tool["staticResponse"]
             }
           ],
           "isError": False,
         }
-      except requests.RequestException as e:
-        return {
-          "content": [{"type": "text", "text": f"Error calling tool endpoint: {str(e)}"}],
-          "isError": True,
-        }
+      # Handle HTTP endpoint
+      elif (tool.get("responseType") == "endpoint" or "endpoint" in tool) and "endpoint" in tool:
+        try:
+          # Create payload with tool, arguments and client info
+          payload = {
+            "tool": tool_name,
+            "arguments": tool_arguments,
+            "clientInfo": session.client_info
+          }
+          
+          # Make an actual HTTP POST request to the tool's endpoint
+          response = requests.post(
+            tool["endpoint"],
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=30
+          )
+          
+          # Check if request was successful
+          response.raise_for_status()
+          
+          # Return the response text
+          return {
+            "content": [
+              {
+                "type": "text", 
+                "text": response.text
+              }
+            ],
+            "isError": False,
+          }
+        except requests.RequestException as e:
+          return {
+            "content": [{"type": "text", "text": f"Error calling tool endpoint: {str(e)}"}],
+            "isError": True,
+          }
 
   # If no configured tools match, return an error
   return {

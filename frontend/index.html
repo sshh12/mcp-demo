@@ -22,7 +22,7 @@
             margin-bottom: 5px;
             font-weight: bold;
         }
-        input, textarea {
+        input, textarea, select {
             width: 100%;
             padding: 8px;
             box-sizing: border-box;
@@ -56,6 +56,12 @@
         .delete-tool {
             background-color: #f44336;
             margin-top: 10px;
+        }
+        .response-container {
+            display: none;
+        }
+        .endpoint-container {
+            display: none;
         }
     </style>
 </head>
@@ -112,8 +118,19 @@
                         <textarea class="tool-schema" rows="5">{"type": "object", "properties": {}, "required": []}</textarea>
                     </div>
                     <div class="form-group">
+                        <label>Response Type:</label>
+                        <select class="response-type">
+                            <option value="endpoint">HTTP Post Endpoint</option>
+                            <option value="static">Static Text Response</option>
+                        </select>
+                    </div>
+                    <div class="form-group endpoint-container">
                         <label>HTTP Post Endpoint:</label>
                         <input type="text" class="tool-endpoint">
+                    </div>
+                    <div class="form-group response-container">
+                        <label>Static Text Response:</label>
+                        <textarea class="tool-response" rows="3"></textarea>
                     </div>
                     <button class="delete-tool">Delete Tool</button>
                 `;
@@ -123,6 +140,24 @@
                 // Add delete tool handler
                 toolDiv.querySelector('.delete-tool').addEventListener('click', function() {
                     toolsContainer.removeChild(toolDiv);
+                });
+                
+                // Add response type change handler
+                const responseTypeSelect = toolDiv.querySelector('.response-type');
+                const endpointContainer = toolDiv.querySelector('.endpoint-container');
+                const responseContainer = toolDiv.querySelector('.response-container');
+                
+                // Show endpoint by default
+                endpointContainer.style.display = 'block';
+                
+                responseTypeSelect.addEventListener('change', function() {
+                    if (this.value === 'endpoint') {
+                        endpointContainer.style.display = 'block';
+                        responseContainer.style.display = 'none';
+                    } else {
+                        endpointContainer.style.display = 'none';
+                        responseContainer.style.display = 'block';
+                    }
                 });
             });
             
@@ -145,14 +180,22 @@
                         alert('Invalid JSON schema for tool: ' + name);
                         return;
                     }
-                    const endpoint = tool.querySelector('.tool-endpoint').value;
                     
-                    tools.push({
+                    const responseType = tool.querySelector('.response-type').value;
+                    const toolData = {
                         name,
                         description,
                         inputSchema: schema,
-                        endpoint
-                    });
+                        responseType
+                    };
+                    
+                    if (responseType === 'endpoint') {
+                        toolData.endpoint = tool.querySelector('.tool-endpoint').value;
+                    } else {
+                        toolData.staticResponse = tool.querySelector('.tool-response').value;
+                    }
+                    
+                    tools.push(toolData);
                 });
                 
                 // Create config object
