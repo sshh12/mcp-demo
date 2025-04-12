@@ -14,6 +14,9 @@ COPY backend/nginx.conf /etc/nginx/nginx.conf
 # Copy backend code
 COPY backend/ .
 
+# Copy frontend code
+COPY frontend/ /app/frontend/
+
 # Create start script
 RUN echo '#!/bin/bash\n\
     service nginx start\n\
