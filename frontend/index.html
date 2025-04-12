@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Server Configuration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        .tool {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f8f8;
+            border-radius: 5px;
+        }
+        #generatedUrl {
+            word-break: break-all;
+        }
+        .delete-tool {
+            background-color: #f44336;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>MCP Server Configuration</h1>
+    
+    <div class="form-group">
+        <label for="serverName">Server Name:</label>
+        <input type="text" id="serverName" value="Demo MCP">
+    </div>
+    
+    <div class="form-group">
+        <label for="serverVersion">Server Version:</label>
+        <input type="text" id="serverVersion" value="1.0.0">
+    </div>
+    
+    <h2>Tools</h2>
+    <div id="toolsContainer"></div>
+    
+    <button id="addTool">Add Tool</button>
+    
+    <div class="form-group" style="margin-top: 20px;">
+        <button id="generateUrl">Generate URL</button>
+    </div>
+    
+    <div class="result">
+        <h3>Generated URL:</h3>
+        <pre id="generatedUrl"></pre>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const toolsContainer = document.getElementById('toolsContainer');
+            const addToolButton = document.getElementById('addTool');
+            const generateUrlButton = document.getElementById('generateUrl');
+            const generatedUrlElement = document.getElementById('generatedUrl');
+            
+            // Add tool
+            addToolButton.addEventListener('click', function() {
+                const toolDiv = document.createElement('div');
+                toolDiv.className = 'tool';
+                
+                toolDiv.innerHTML = `
+                    <div class="form-group">
+                        <label>Tool Name:</label>
+                        <input type="text" class="tool-name">
+                    </div>
+                    <div class="form-group">
+                        <label>Description:</label>
+                        <textarea class="tool-description" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Input Schema (JSON):</label>
+                        <textarea class="tool-schema" rows="5">{"type": "object", "properties": {}, "required": []}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>HTTP Post Endpoint:</label>
+                        <input type="text" class="tool-endpoint">
+                    </div>
+                    <button class="delete-tool">Delete Tool</button>
+                `;
+                
+                toolsContainer.appendChild(toolDiv);
+                
+                // Add delete tool handler
+                toolDiv.querySelector('.delete-tool').addEventListener('click', function() {
+                    toolsContainer.removeChild(toolDiv);
+                });
+            });
+            
+            // Generate URL
+            generateUrlButton.addEventListener('click', function() {
+                const serverName = document.getElementById('serverName').value;
+                const serverVersion = document.getElementById('serverVersion').value;
+                
+                // Collect tools data
+                const tools = [];
+                const toolElements = document.querySelectorAll('.tool');
+                
+                toolElements.forEach(tool => {
+                    const name = tool.querySelector('.tool-name').value;
+                    const description = tool.querySelector('.tool-description').value;
+                    let schema = {};
+                    try {
+                        schema = JSON.parse(tool.querySelector('.tool-schema').value);
+                    } catch (e) {
+                        alert('Invalid JSON schema for tool: ' + name);
+                        return;
+                    }
+                    const endpoint = tool.querySelector('.tool-endpoint').value;
+                    
+                    tools.push({
+                        name,
+                        description,
+                        inputSchema: schema,
+                        endpoint
+                    });
+                });
+                
+                // Create config object
+                const config = {
+                    serverInfo: {
+                        name: serverName,
+                        version: serverVersion
+                    },
+                    tools
+                };
+                
+                // Convert to base64
+                const configStr = JSON.stringify(config);
+                const configB64 = btoa(configStr);
+                
+                // Generate URL
+                const url = `/sse?config=${encodeURIComponent(configB64)}`;
+                generatedUrlElement.textContent = url;
+            });
+            
+            // Add one tool by default
+            addToolButton.click();
+        });
+    </script>
+</body>
+</html> 
