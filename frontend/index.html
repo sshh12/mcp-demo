@@ -50,7 +50,7 @@
             background-color: #f8f8f8;
             border-radius: 5px;
         }
-        #generatedUrl {
+        #generatedUrl, #shareUrl {
             word-break: break-all;
         }
         .delete-tool {
@@ -62,6 +62,26 @@
         }
         .endpoint-container {
             display: none;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        .copy-button {
+            background-color: #2196F3;
+        }
+        #shareContainer, #mcpConfigContainer {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f8ff;
+            border-radius: 5px;
+            display: none;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
         }
     </style>
 </head>
@@ -81,23 +101,162 @@
     <h2>Tools</h2>
     <div id="toolsContainer"></div>
     
-    <button id="addTool">Add Tool</button>
-    
     <div class="form-group" style="margin-top: 20px;">
-        <button id="generateUrl">Generate URL</button>
+        <div class="button-group">
+            <button id="addTool">Add Tool</button>
+        </div>
     </div>
     
     <div class="result">
-        <h3>Generated URL:</h3>
+        <h3>Generated URL: <small>(updates automatically)</small></h3>
         <pre id="generatedUrl"></pre>
+        <button id="copyUrl" class="copy-button">Copy URL</button>
+    </div>
+
+    <div id="shareContainer">
+        <h3>Share Link: <small>(updates automatically)</small></h3>
+        <p>Use this link to share your current configuration with others:</p>
+        <pre id="shareUrl"></pre>
+        <button id="copyShareLink" class="copy-button">Copy Share Link</button>
+    </div>
+
+    <div id="mcpConfigContainer">
+        <h3>MCP Configuration: <small>(updates automatically)</small></h3>
+        <p>Copy this configuration to your <code>mcp.json</code> file:</p>
+        <pre id="mcpConfig"></pre>
+        <button id="copyMcpConfig" class="copy-button">Copy MCP Config</button>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const toolsContainer = document.getElementById('toolsContainer');
             const addToolButton = document.getElementById('addTool');
-            const generateUrlButton = document.getElementById('generateUrl');
             const generatedUrlElement = document.getElementById('generatedUrl');
+            const shareUrlElement = document.getElementById('shareUrl');
+            const shareContainer = document.getElementById('shareContainer');
+            const mcpConfigElement = document.getElementById('mcpConfig');
+            const mcpConfigContainer = document.getElementById('mcpConfigContainer');
+            const copyUrlButton = document.getElementById('copyUrl');
+            const copyShareLinkButton = document.getElementById('copyShareLink');
+            const copyMcpConfigButton = document.getElementById('copyMcpConfig');
+            
+            // Function to update URLs whenever configuration changes
+            function updateUrls() {
+                const config = createConfigObject();
+                if (!config) return;
+                
+                // Convert to base64
+                const configStr = JSON.stringify(config);
+                const configB64 = btoa(configStr);
+                
+                // Update generated URL
+                const url = `${window.location.origin}/sse?config=${encodeURIComponent(configB64)}`;
+                generatedUrlElement.textContent = url;
+                
+                // Update share URL
+                const shareUrl = `${window.location.origin}${window.location.pathname}?config=${encodeURIComponent(configB64)}`;
+                shareUrlElement.textContent = shareUrl;
+                shareContainer.style.display = 'block';
+                
+                // Update MCP config
+                const serverName = document.getElementById('serverName').value || 'MCP Server';
+                const serverVersion = document.getElementById('serverVersion').value || '1.0.0';
+                
+                const mcpConfig = {
+                    "mcpServers": {
+                        "mcpServer": {
+                            "url": url,
+                            "name": serverName,
+                            "version": serverVersion,
+                            "description": serverName
+                        }
+                    }
+                };
+                
+                mcpConfigElement.textContent = JSON.stringify(mcpConfig, null, 2);
+                mcpConfigContainer.style.display = 'block';
+            }
+            
+            // Add event listeners to track changes
+            function attachChangeListeners() {
+                // Listen for changes to server name and version
+                document.getElementById('serverName').addEventListener('input', updateUrls);
+                document.getElementById('serverVersion').addEventListener('input', updateUrls);
+                
+                // For dynamically added tools, we'll handle in the tool creation function
+            }
+            
+            // Check if URL has configuration parameter
+            function loadConfigFromUrl() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const configParam = urlParams.get('config');
+                
+                if (configParam) {
+                    try {
+                        const configJson = atob(configParam);
+                        const config = JSON.parse(configJson);
+                        
+                        // Set server info
+                        if (config.serverInfo) {
+                            document.getElementById('serverName').value = config.serverInfo.name || 'Demo MCP';
+                            document.getElementById('serverVersion').value = config.serverInfo.version || '1.0.0';
+                        }
+                        
+                        // Clear existing tools
+                        toolsContainer.innerHTML = '';
+                        
+                        // Add tools from config
+                        if (config.tools && Array.isArray(config.tools)) {
+                            config.tools.forEach(tool => {
+                                addToolButton.click();
+                                const toolDiv = toolsContainer.lastElementChild;
+                                
+                                toolDiv.querySelector('.tool-name').value = tool.name || '';
+                                toolDiv.querySelector('.tool-description').value = tool.description || '';
+                                
+                                if (tool.inputSchema) {
+                                    toolDiv.querySelector('.tool-schema').value = JSON.stringify(tool.inputSchema, null, 2);
+                                }
+                                
+                                const responseTypeSelect = toolDiv.querySelector('.response-type');
+                                responseTypeSelect.value = tool.responseType || 'endpoint';
+                                
+                                const endpointContainer = toolDiv.querySelector('.endpoint-container');
+                                const responseContainer = toolDiv.querySelector('.response-container');
+                                
+                                if (tool.responseType === 'static') {
+                                    endpointContainer.style.display = 'none';
+                                    responseContainer.style.display = 'block';
+                                    toolDiv.querySelector('.tool-response').value = tool.staticResponse || '';
+                                } else {
+                                    endpointContainer.style.display = 'block';
+                                    responseContainer.style.display = 'none';
+                                    toolDiv.querySelector('.tool-endpoint').value = tool.endpoint || '';
+                                }
+                            });
+                        }
+                        
+                        // Generate URL for the loaded config
+                        updateUrls();
+                    } catch (e) {
+                        console.error('Error loading configuration from URL:', e);
+                        alert('Failed to load configuration from URL. Starting with default settings.');
+                        addToolButton.click();
+                    }
+                } else {
+                    // Add one tool by default if no config in URL
+                    addToolButton.click();
+                }
+            }
+            
+            // Create a function to add change listeners to a tool
+            function addToolChangeListeners(toolDiv) {
+                const inputs = toolDiv.querySelectorAll('input, textarea, select');
+                inputs.forEach(input => {
+                    input.addEventListener('input', updateUrls);
+                    input.addEventListener('change', updateUrls);
+                });
+            }
             
             // Add tool
             addToolButton.addEventListener('click', function() {
@@ -140,6 +299,7 @@
                 // Add delete tool handler
                 toolDiv.querySelector('.delete-tool').addEventListener('click', function() {
                     toolsContainer.removeChild(toolDiv);
+                    updateUrls();
                 });
                 
                 // Add response type change handler
@@ -150,6 +310,9 @@
                 // Show endpoint by default
                 endpointContainer.style.display = 'block';
                 
+                // Add change listeners to the new tool
+                addToolChangeListeners(toolDiv);
+                
                 responseTypeSelect.addEventListener('change', function() {
                     if (this.value === 'endpoint') {
                         endpointContainer.style.display = 'block';
@@ -158,17 +321,23 @@
                         endpointContainer.style.display = 'none';
                         responseContainer.style.display = 'block';
                     }
+                    updateUrls();
                 });
+                
+                // Update URLs after adding a new tool
+                updateUrls();
             });
             
-            // Generate URL
-            generateUrlButton.addEventListener('click', function() {
+            // Create config object from current form
+            function createConfigObject() {
                 const serverName = document.getElementById('serverName').value;
                 const serverVersion = document.getElementById('serverVersion').value;
                 
                 // Collect tools data
                 const tools = [];
                 const toolElements = document.querySelectorAll('.tool');
+                
+                let isValid = true;
                 
                 toolElements.forEach(tool => {
                     const name = tool.querySelector('.tool-name').value;
@@ -178,6 +347,7 @@
                         schema = JSON.parse(tool.querySelector('.tool-schema').value);
                     } catch (e) {
                         alert('Invalid JSON schema for tool: ' + name);
+                        isValid = false;
                         return;
                     }
                     
@@ -198,26 +368,83 @@
                     tools.push(toolData);
                 });
                 
+                if (!isValid) return null;
+                
                 // Create config object
-                const config = {
+                return {
                     serverInfo: {
                         name: serverName,
                         version: serverVersion
                     },
                     tools
                 };
-                
-                // Convert to base64
-                const configStr = JSON.stringify(config);
-                const configB64 = btoa(configStr);
-                
-                // Generate URL
-                const url = `/sse?config=${encodeURIComponent(configB64)}`;
-                generatedUrlElement.textContent = url;
+            }
+            
+            // Copy URL function
+            copyUrlButton.addEventListener('click', function() {
+                navigator.clipboard.writeText(generatedUrlElement.textContent)
+                    .then(() => {
+                        const originalText = copyUrlButton.textContent;
+                        copyUrlButton.textContent = 'Copied!';
+                        setTimeout(() => {
+                            copyUrlButton.textContent = originalText;
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('Failed to copy text: ', err);
+                    });
             });
             
-            // Add one tool by default
-            addToolButton.click();
+            // Copy Share Link function
+            copyShareLinkButton.addEventListener('click', function() {
+                navigator.clipboard.writeText(shareUrlElement.textContent)
+                    .then(() => {
+                        const originalText = copyShareLinkButton.textContent;
+                        copyShareLinkButton.textContent = 'Copied!';
+                        setTimeout(() => {
+                            copyShareLinkButton.textContent = originalText;
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('Failed to copy text: ', err);
+                    });
+            });
+            
+            // Copy MCP Config function
+            copyMcpConfigButton.addEventListener('click', function() {
+                navigator.clipboard.writeText(mcpConfigElement.textContent)
+                    .then(() => {
+                        const originalText = copyMcpConfigButton.textContent;
+                        copyMcpConfigButton.textContent = 'Copied!';
+                        setTimeout(() => {
+                            copyMcpConfigButton.textContent = originalText;
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('Failed to copy text: ', err);
+                    });
+            });
+            
+            // Initialize the page
+            function init() {
+                // Load configuration from URL if available
+                loadConfigFromUrl();
+                // Attach change listeners to form elements
+                attachChangeListeners();
+                // Add tool deletion handler to document for event delegation
+                document.addEventListener('click', function(e) {
+                    if (e.target && e.target.classList.contains('delete-tool')) {
+                        const toolDiv = e.target.closest('.tool');
+                        if (toolDiv) {
+                            toolsContainer.removeChild(toolDiv);
+                            updateUrls();
+                        }
+                    }
+                });
+            }
+            
+            // Initialize everything
+            init();
         });
     </script>
 </body>
